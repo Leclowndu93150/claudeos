@@ -182,11 +182,12 @@ void keyboard_irq(void) {
     if (key == 0x38) { kb_state.alt = !released; return; }
     if (key == 0x3A && !released) { kb_state.caps = !kb_state.caps; return; }
 
-    if (!released && key < sizeof(sc_ascii)) {
-        char ch;
-        bool upper = kb_state.shift ^ kb_state.caps;
-        if (upper) ch = sc_shift[key];
-        else ch = sc_ascii[key];
+    if (!released) {
+        char ch = 0;
+        if (key < sizeof(sc_ascii)) {
+            bool upper = kb_state.shift ^ kb_state.caps;
+            ch = upper ? sc_shift[key] : sc_ascii[key];
+        }
 
         Event ev;
         k_memset(&ev, 0, sizeof(ev));
@@ -198,12 +199,27 @@ void keyboard_irq(void) {
         ev.alt = kb_state.alt;
         event_push(&ev);
 
-        int next = (kb_head + 1) % KB_BUF;
-        if (next != kb_tail) {
-            kb_buf[kb_head] = ch;
-            kb_head = next;
+        if (ch) {
+            int next = (kb_head + 1) % KB_BUF;
+            if (next != kb_tail) {
+                kb_buf[kb_head] = ch;
+                kb_head = next;
+            }
         }
     }
+}
+
+void speaker_tone(uint32_t freq) {
+    if (freq == 0) return;
+    uint32_t div = 1193180 / freq;
+    outb(0x43, 0xB6);
+    outb(0x42, div & 0xFF);
+    outb(0x42, (div >> 8) & 0xFF);
+    outb(0x61, inb(0x61) | 3);
+}
+
+void speaker_off(void) {
+    outb(0x61, inb(0x61) & ~3);
 }
 
 bool keyboard_has_key(void) { return kb_head != kb_tail; }

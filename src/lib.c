@@ -143,6 +143,23 @@ void kfree(void* ptr) {
     }
 }
 
+static char clipboard_buf[MAX_TEXT];
+static int clipboard_len = 0;
+
+void clipboard_copy(const char* text, int len) {
+    if (len >= MAX_TEXT) len = MAX_TEXT - 1;
+    k_memcpy(clipboard_buf, text, len);
+    clipboard_buf[len] = 0;
+    clipboard_len = len;
+}
+
+int clipboard_paste(char* buf, int max) {
+    int len = clipboard_len < max - 1 ? clipboard_len : max - 1;
+    k_memcpy(buf, clipboard_buf, len);
+    buf[len] = 0;
+    return len;
+}
+
 void mem_stats(uint32_t* total, uint32_t* used, uint32_t* free_mem) {
     uint32_t t = 0, u = 0, f = 0;
     Block* b = heap_start;

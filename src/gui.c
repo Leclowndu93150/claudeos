@@ -289,6 +289,28 @@ static bool widget_event(Widget* wg, Window* win, Event* ev, int ox, int oy) {
             if (inside) return true;
         }
         if (ev->type == EVENT_KEY_DOWN && wg->focused) {
+            if (ev->ctrl && (ev->key_char == 'c' || ev->keycode == 0x2E)) {
+                clipboard_copy(wg->content, wg->content_len);
+                return true;
+            }
+            if (ev->ctrl && (ev->key_char == 'v' || ev->keycode == 0x2F)) {
+                char tmp[MAX_TEXT];
+                int plen = clipboard_paste(tmp, MAX_TEXT);
+                if (plen > 0 && wg->content_len + plen < wg->content_cap - 1) {
+                    int pos = 0, line = 0, col = 0;
+                    char* pp = wg->content;
+                    while (pos < wg->content_len) {
+                        if (line == wg->cur_line && col == wg->cur_col) break;
+                        if (pp[pos] == '\n') { line++; col = 0; } else { col++; }
+                        pos++;
+                    }
+                    k_memmove(wg->content + pos + plen, wg->content + pos, wg->content_len - pos + 1);
+                    k_memcpy(wg->content + pos, tmp, plen);
+                    wg->content_len += plen;
+                    wg->cur_col += plen;
+                }
+                return true;
+            }
             int len = wg->content_len;
             int pos = 0, line = 0, col = 0;
             char* p = wg->content;
@@ -412,6 +434,14 @@ static void draw_window(Window* win) {
         if (win->widgets[i].visible) draw_widget(&win->widgets[i], cx, cy);
     }
     fb_clip_reset();
+
+    int gx = x + w - 12, gy = y + h - 12;
+    for (int i = 0; i < 3; i++) {
+        int off = i * 4;
+        fb_pixel(gx + off + 2, gy + 8, 0x666666);
+        fb_pixel(gx + off + 2, gy + 4 + off, 0x666666);
+        fb_pixel(gx + 6, gy + 4 + off, 0x666666);
+    }
 }
 
 static bool window_event(Window* win, Event* ev) {
@@ -453,12 +483,40 @@ static bool window_event(Window* win, Event* ev) {
         win->dragging = false;
     }
 
+    if (ev->type == EVENT_MOUSE_DOWN && ev->mouse_button == 0) {
+        int ex = x + w, ey = y + h;
+        bool on_right = mx >= ex - 6 && mx <= ex && my > y + TITLE_H;
+        bool on_bottom = my >= ey - 6 && my <= ey && mx > x;
+        if (on_right || on_bottom) {
+            win->resizing = true;
+            win->resize_edge = (on_right && on_bottom) ? 3 : (on_right ? 1 : 2);
+            return true;
+        }
+    }
+    if (ev->type == EVENT_MOUSE_MOVE && win->resizing) {
+        if (win->resize_edge == 1 || win->resize_edge == 3) {
+            int nw = mx - win->x;
+            if (nw < 200) nw = 200;
+            win->w = nw;
+        }
+        if (win->resize_edge == 2 || win->resize_edge == 3) {
+            int nh = my - win->y;
+            if (nh < 100) nh = 100;
+            win->h = nh;
+        }
+        return true;
+    }
+    if (ev->type == EVENT_MOUSE_UP && win->resizing) {
+        win->resizing = false;
+        return true;
+    }
+
     int cx = x + BORDER_W;
     int cy = y + TITLE_H;
     int cw = w - 2*BORDER_W;
     int ch = h - TITLE_H - BORDER_W;
 
-    if (ev->type == EVENT_KEY_DOWN || (ev->type >= EVENT_MOUSE_DOWN && mx >= cx && mx < cx+cw && my >= cy && my < cy+ch)) {
+    if (ev->type == EVENT_KEY_DOWN || (ev->type >= EVENT_MOUSE_MOVE && mx >= cx && mx < cx+cw && my >= cy && my < cy+ch)) {
         for (int i = 0; i < win->widget_count; i++) {
             if (win->widgets[i].visible && win->widgets[i].enabled) {
                 if (widget_event(&win->widgets[i], win, ev, cx, cy)) return true;
@@ -506,11 +564,48 @@ void gui_event(Event* ev) {
     }
 
     if (ev->type == EVENT_MOUSE_MOVE || ev->type == EVENT_MOUSE_UP) {
-        if (focused >= 0) window_event(&windows[focused], ev);
+        if (focused >= 0) {
+            Window* fw = &windows[focused];
+            bool was_dragging = fw->dragging;
+            window_event(fw, ev);
+            if (was_dragging && !fw->dragging && ev->type == EVENT_MOUSE_UP) {
+                if (fw->x <= 0 && !fw->maximized) {
+                    fw->rx = fw->x; fw->ry = fw->y;
+                    fw->rw = fw->w; fw->rh = fw->h;
+                    fw->x = 0; fw->y = 0;
+                    fw->w = f->width / 2;
+                    fw->h = f->height - TASKBAR_H;
+                } else if (fw->x + fw->w >= (int)f->width && !fw->maximized) {
+                    fw->rx = fw->x; fw->ry = fw->y;
+                    fw->rw = fw->w; fw->rh = fw->h;
+                    fw->x = f->width / 2;
+                    fw->y = 0;
+                    fw->w = f->width / 2;
+                    fw->h = f->height - TASKBAR_H;
+                } else if (fw->y <= 0 && !fw->maximized) {
+                    window_toggle_max(fw);
+                }
+            }
+        }
         return;
     }
 
     if (ev->type == EVENT_KEY_DOWN) {
+        if (ev->alt && ev->key_char == '\t' && win_count > 1) {
+            int cur = -1;
+            for (int i = 0; i < win_count; i++)
+                if (win_order[i] == focused) { cur = i; break; }
+            for (int tries = 0; tries < win_count; tries++) {
+                cur = (cur - 1 + win_count) % win_count;
+                Window* nw = &windows[win_order[cur]];
+                if (!nw->minimized) { nw->minimized = false; window_focus(nw); break; }
+            }
+            return;
+        }
+        if (ev->alt && ev->keycode == 0x3E && focused >= 0) {
+            window_destroy(&windows[focused]);
+            return;
+        }
         if (focused >= 0) window_event(&windows[focused], ev);
         return;
     }
@@ -522,6 +617,7 @@ void gui_draw(void) {
         draw_window(&windows[win_order[i]]);
     }
     taskbar_draw();
+    context_menu_draw();
     MouseState* m = mouse_state();
     cursor_draw(m->x, m->y);
     fb_swap();

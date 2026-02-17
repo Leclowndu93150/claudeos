@@ -1,18 +1,40 @@
 # Claude OS
 
-A bare-metal x86 operating system with a graphical desktop environment, built from scratch in C and x86 assembly. Boots directly on hardware via GRUB2.
+A bare-metal x86 operating system with a graphical desktop environment, built from scratch in C and x86 assembly. No libc. No stdlib. Just bare metal. Boots directly on hardware via GRUB2.
 
 ![Claude OS](https://img.shields.io/badge/arch-x86--32-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
+### Desktop Environment
 - **Window Manager** - Draggable, resizable windows with minimize, maximize, and close buttons
+- **Window Snapping** - Drag to left/right edge to snap half-screen, drag to top to maximize
+- **Alt+Tab** - Cycle between open windows
+- **Alt+F4** - Close the focused window
 - **Desktop** - Clickable icons, start menu with app launcher, taskbar with window switching and clock
+- **Right-click Menu** - Context menu on desktop for quick access to settings, terminal, and file creation
+- **Wallpapers** - Solid, gradient, and grid wallpaper styles with 12 color presets
+- **Boot Splash** - Startup splash screen with COS logo
+
+### Applications
 - **File Explorer** - Navigate the in-memory filesystem, double-click files to open in Notepad
-- **Notepad** - Text editor with save support, blinking cursor, scrolling
-- **Snake** - Classic snake game with arrow key controls and score tracking
-- **Tetris** - Full Tetris with rotation, line clearing, levels, next piece preview, and hard drop
-- **Task Manager** - Shows running processes, memory usage bar, and system uptime
+- **Notepad** - Text editor with save support, blinking cursor, scrolling, Ctrl+C/V clipboard
+- **Terminal** - Full command-line shell with inline prompt, command history (up/down arrows), and commands: help, clear, echo, ls, cd, cat, pwd, mkdir, touch, whoami, date, uptime, neofetch, exit
+- **Calculator** - Button-based integer calculator with keyboard support and hover effects
+- **Paint** - Pixel drawing with 16-color palette, 3 brush sizes, and smooth Bresenham line drawing
+- **Settings** - Desktop background color picker and wallpaper style selector
+- **About** - System information display with live memory and uptime stats
+- **Task Manager** - Running processes, memory usage bar, and system uptime
+
+### Games
+- **Snake** - Arrow key controls, score tracking
+- **Tetris** - Rotation, line clearing, levels, next piece preview, hard drop
+- **Minesweeper** - 16x16 grid, 40 mines, flood-fill reveal, right-click flagging
+- **2048** - Arrow key sliding, tile merging, score tracking, win/lose detection
+
+### System
+- **Clipboard** - Ctrl+C/V support in text areas
+- **PC Speaker** - PIT channel 2 audio output
 - **Extensible App Format** - Add new apps by creating a single .c file with function pointer callbacks
 
 ## Architecture
@@ -21,9 +43,10 @@ A bare-metal x86 operating system with a graphical desktop environment, built fr
 - VESA framebuffer graphics (1024x768x32bpp) with double buffering
 - Custom GDT, IDT with 48 ISR stubs for CPU exceptions and hardware IRQs
 - PIC remapping, PIT timer at 100Hz
-- PS/2 keyboard driver (scancode set 1, extended keys for arrows)
+- PS/2 keyboard driver (scancode set 1, extended keys for arrows and F-keys)
 - PS/2 mouse driver (3-byte packet protocol)
-- Free-list heap allocator (kmalloc/kfree)
+- Free-list heap allocator with coalescing (kmalloc/kfree)
+- Dynamic heap placement after BSS via linker script symbol
 - In-memory ramdisk filesystem
 - Event-driven GUI with widget system (labels, buttons, text inputs, text areas, list views)
 - Per-window app state via heap allocation
@@ -138,15 +161,22 @@ claudeos/
     kernel.c          - IDT, PIC, timer, event loop, main
     kernel.h          - All types, structs, function declarations
     types.h           - Basic types, port I/O
-    lib.c             - String functions, heap allocator
-    drivers.c         - Keyboard, mouse, framebuffer, bitmap font
+    lib.c             - String functions, heap allocator, clipboard
+    drivers.c         - Keyboard, mouse, framebuffer, bitmap font, PC speaker
     gui.c             - Window manager, widget system, compositor
-    desktop.c         - Desktop icons, taskbar, start menu, cursor
+    desktop.c         - Desktop icons, taskbar, start menu, wallpaper, context menu
     apps.c            - App registry, in-memory filesystem
     file_explorer.c   - File browser app
     notepad.c         - Text editor app
+    terminal.c        - Command-line terminal with neofetch
+    calculator.c      - Integer calculator
+    paint.c           - Pixel drawing app
+    settings.c        - Desktop settings (color, wallpaper)
+    about.c           - System information
     snake.c           - Snake game
     tetris.c          - Tetris game
+    minesweeper.c     - Minesweeper game
+    game2048.c        - 2048 game
     taskmgr.c         - Task manager
   iso/boot/grub/
     grub.cfg          - GRUB bootloader config

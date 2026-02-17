@@ -49,7 +49,7 @@
 #define MAX_WINDOWS   32
 #define MAX_WIDGETS   48
 #define MAX_TEXT      4096
-#define MAX_ITEMS     256
+#define MAX_ITEMS     64
 #define MAX_APPS      32
 
 #define EVENT_QUEUE_SIZE 256
@@ -169,6 +169,9 @@ struct Window {
 
     AppDef* app;
     void* user_data;
+
+    bool resizing;
+    int resize_edge;
 };
 
 #define FS_MAX_FILES 128
@@ -264,6 +267,25 @@ void notepad_register(void);
 void snake_register(void);
 void tetris_register(void);
 void taskmgr_register(void);
+void calculator_register(void);
+void paint_register(void);
+void minesweeper_register(void);
+void game2048_register(void);
+void settings_register(void);
+void about_register(void);
+void terminal_register(void);
+
+void speaker_tone(uint32_t freq);
+void speaker_off(void);
+
+void clipboard_copy(const char* text, int len);
+int clipboard_paste(char* buf, int max);
+
+uint32_t desktop_get_color(void);
+void desktop_set_color(uint32_t color);
+int desktop_get_wallpaper(void);
+void desktop_set_wallpaper(int style);
+void context_menu_draw(void);
 
 void fs_init(void);
 int fs_find(const char* path);

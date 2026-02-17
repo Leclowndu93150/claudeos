@@ -166,6 +166,8 @@ static void parse_multiboot(uint32_t* addr) {
     }
 }
 
+extern uint32_t _kernel_end;
+
 void kernel_main(uint32_t magic, uint32_t* mb_info) {
     if (magic != 0x36D76289) return;
 
@@ -176,7 +178,8 @@ void kernel_main(uint32_t magic, uint32_t* mb_info) {
     keyboard_init();
     mouse_init();
 
-    mem_init(0x400000, 16 * 1024 * 1024);
+    uint32_t heap_start = ((uint32_t)&_kernel_end + 0xFFF) & ~0xFFF;
+    mem_init(heap_start, 32 * 1024 * 1024);
     fb_init(fb_info.addr, fb_info.width, fb_info.height, fb_info.pitch, fb_info.bpp);
 
     fs_init();
@@ -188,6 +191,13 @@ void kernel_main(uint32_t magic, uint32_t* mb_info) {
     snake_register();
     tetris_register();
     taskmgr_register();
+    calculator_register();
+    paint_register();
+    minesweeper_register();
+    game2048_register();
+    settings_register();
+    about_register();
+    terminal_register();
 
     asm volatile("sti");
 

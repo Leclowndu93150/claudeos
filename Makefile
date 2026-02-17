@@ -7,7 +7,9 @@ LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
 ASM_SRC = src/boot.asm
 C_SRC = src/kernel.c src/lib.c src/drivers.c src/gui.c src/desktop.c src/apps.c \
-        src/file_explorer.c src/notepad.c src/snake.c src/tetris.c src/taskmgr.c
+        src/file_explorer.c src/notepad.c src/snake.c src/tetris.c src/taskmgr.c \
+        src/calculator.c src/paint.c src/minesweeper.c src/game2048.c \
+        src/settings.c src/about.c src/terminal.c
 
 ASM_OBJ = $(ASM_SRC:.asm=.o)
 C_OBJ = $(C_SRC:.c=.o)
